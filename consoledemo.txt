@@ -1,0 +1,102 @@
+program SecureSQLDemo;
+
+{$APPTYPE CONSOLE}
+
+uses
+  System.SysUtils,
+  System.Variants,
+  SecureSQLHandler in 'SecureSQLHandler.pas';
+
+var
+  SecureQuery: TSecureSQLQuery;
+  ConnectionManager: TSecureSQLConnectionManager;
+  ConnectionString: string;
+
+begin
+  try
+    WriteLn('SecureSQL Library Demo');
+    WriteLn('======================');
+    WriteLn;
+    
+    // Example connection string (would typically come from secure storage)
+    ConnectionString := 'DriverID=MSSQL;Server=myserver;Database=mydatabase;User_Name=myuser;Password=mypassword;';
+    
+    // Create a connection manager
+    WriteLn('Creating connection manager...');
+    ConnectionManager := TSecureSQLConnectionManager.Create;
+    try
+      // Encrypt and store the connection
+      WriteLn('Adding and encrypting connection...');
+      ConnectionManager.AddConnection('MainDB', ConnectionString);
+      
+      // Show encrypted connection string (in real app, you wouldn't display this)
+      WriteLn('Encrypted connection string: ');
+      WriteLn(ConnectionManager.FEncryptedConnectionStrings['MainDB']);
+      WriteLn;
+      
+      // Create secure query with obfuscated SQL
+      WriteLn('Creating secure SQL query...');
+      SecureQuery := TSecureSQLQuery.Create(ConnectionString);
+      try
+        // Set the SQL (will be automatically obfuscated)
+        WriteLn('Setting SQL query...');
+        SecureQuery.SQL := 'SELECT CustomerID, FirstName, LastName FROM Customers WHERE Status = :Status AND RegisterDate > :RegDate';
+        
+        // Add parameters
+        WriteLn('Adding parameters...');
+        SecureQuery.AddParameter('Status', 'Active', pdtString);
+        SecureQuery.AddParameter('RegDate', EncodeDate(2023, 1, 1), pdtDate);
+        
+        // In a real application, we would execute the query:
+        // WriteLn('Executing query...');
+        // if SecureQuery.Open then
+        // begin
+        //   WriteLn('Query returned data:');
+        //   while not SecureQuery.Query.Eof do
+        //   begin
+        //     WriteLn(Format('%s: %s %s', [
+        //       SecureQuery.Query.FieldByName('CustomerID').AsString,
+        //       SecureQuery.Query.FieldByName('FirstName').AsString,
+        //       SecureQuery.Query.FieldByName('LastName').AsString
+        //     ]));
+        //     SecureQuery.Query.Next;
+        //   end;
+        // end;
+        
+        // Show the original SQL (for demo purposes only)
+        WriteLn('Original SQL:');
+        WriteLn(SecureQuery.SQL);
+        WriteLn;
+        
+        // Show the obfuscated SQL (would be hidden in a real application)
+        WriteLn('Obfuscated SQL:');
+        WriteLn(SecureQuery.FObfuscatedSQL);
+        WriteLn;
+        
+        // Show the parameters (would be hidden in a real application)
+        WriteLn('Parameters (encrypted form):');
+        for var Param in SecureQuery.FParameters do
+        begin
+          WriteLn(Format('%s = %s', [Param.Name, Param.AsEncrypted]));
+        end;
+        
+      finally
+        SecureQuery.Free;
+      end;
+      
+    finally
+      ConnectionManager.Free;
+    end;
+    
+    WriteLn;
+    WriteLn('Press Enter to exit...');
+    ReadLn;
+    
+  except
+    on E: Exception do
+    begin
+      WriteLn('Error: ' + E.Message);
+      ReadLn;
+    end;
+  end;
+end.
